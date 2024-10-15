@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>서울 구별 날씨 정보 조회</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        label, select, button {
+            margin: 10px 0;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #weatherResult {
+            margin-top: 20px;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* 미디어 쿼리: 모바일 화면용 스타일 */
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            label, select, button {
+                width: 90%;
+            }
+
+            button {
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>서울 구별 날씨 정보 조회</h1>
+    
+    <form id="weatherForm">
+        <label for="location">서울 구 선택: </label>
+        <select id="location" name="location">
+            <option value="55,127">강남구</option>
+            <option value="61,125">강동구</option>
+            <option value="59,126">강북구</option>
+            <option value="58,125">강서구</option>
+            <option value="56,125">관악구</option>
+            <option value="59,125">광진구</option>
+            <option value="60,127">구로구</option>
+            <option value="57,126">금천구</option>
+            <option value="58,127">노원구</option>
+            <option value="56,127">도봉구</option>
+            <option value="58,126">동대문구</option>
+            <option value="57,127">동작구</option>
+            <option value="60,126">마포구</option>
+            <option value="61,126">서대문구</option>
+            <option value="60,127">서초구</option>
+            <option value="59,125">성동구</option>
+            <option value="60,127">성북구</option>
+            <option value="61,127">송파구</option>
+            <option value="62,126">양천구</option>
+            <option value="57,125">영등포구</option>
+            <option value="59,126">용산구</option>
+            <option value="60,125">은평구</option>
+            <option value="59,126">종로구</option>
+            <option value="61,127">중구</option>
+            <option value="60,126">중랑구</option>
+        </select>
+
+        <button type="submit">날씨 조회</button>
+    </form>
+    
+    <div id="weatherResult"></div>
+
+    <script>
+        document.getElementById('weatherForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            getWeather();
+        });
+
+        function getWeather() {
+            const location = document.getElementById('location').value;
+            const [nx, ny] = location.split(','); // 선택된 값에서 X, Y 좌표를 가져옴
+            const apiKey = 'iXE48VVEMDOw4Y57cgRmCIvEJLTMRq9NArQ5NS18ktrR5QHFgIpW4lWnBxCtGZN57X70EG%2Fy4QclT%2BvTgLSnGw%3D%3D'; // 여기에 발급받은 API 키를 입력하세요.
+            const baseDate = getCurrentDate();
+            const baseTime = '0500'; // API 호출할 기준 시간 (예: 0500, 0800 등)
+
+            const url = `http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst?serviceKey=${apiKey}&numOfRows=10&pageNo=1&dataType=JSON&base_date=${baseDate}&base_time=${baseTime}&nx=${nx}&ny=${ny}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => displayWeather(data))
+                .catch(error => console.error('Error:', error));
+        }
+
+        function getCurrentDate() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}${month}${day}`;
+        }
+
+        function displayWeather(data) {
+            const weatherResult = document.getElementById('weatherResult');
+            const items = data.response.body.items.item;
+
+            if (items.length > 0) {
+                let result = '<h2>날씨 정보</h2>';
+                items.forEach(item => {
+                    let description = '';
+
+                    switch (item.category) {
+                        case 'POP':
+                            description = `강수확률: ${item.fcstValue}%`;
+                            break;
+                        case 'PTY':
+                            description = `강수형태: ${getPrecipitationType(item.fcstValue)}`;
+                            break;
+                        case 'PCP':
+                            description = `1시간 강수량: ${item.fcstValue} mm`;
+                            break;
+                        case 'REH':
+                            description = `습도: ${item.fcstValue}%`;
+                            break;
+                        case 'SNO':
+                            description = `1시간 신적설: ${item.fcstValue} cm`;
+                            break;
+                        case 'SKY':
+                            description = `하늘상태: ${getSkyCondition(item.fcstValue)}`;
+                            break;
+                        case 'TMP':
+                            description = `1시간 기온: ${item.fcstValue}℃`;
+                            break;
+                        case 'TMN':
+                            description = `일 최저기온: ${item.fcstValue}℃`;
+                            break;
+                        case 'TMX':
+                            description = `일 최고기온: ${item.fcstValue}℃`;
+                            break;
+                        case 'UUU':
+                            description = `풍속(동서성분): ${item.fcstValue} m/s`;
+                            break;
+                        case 'VVV':
+                            description = `풍속(남북성분): ${item.fcstValue} m/s`;
+                            break;
+                        case 'WAV':
+                            description = `파고: ${item.fcstValue} m`;
+                            break;
+                        case 'VEC':
+                            description = `풍향: ${item.fcstValue}°`;
+                            break;
+                        case 'WSD':
+                            description = `풍속: ${item.fcstValue} m/s`;
+                            break;
+                        default:
+                            description = `${item.category}: ${item.fcstValue}`;
+                    }
+
+                    result += `<p>${description}</p>`;
+                });
+                weatherResult.innerHTML = result;
+            } else {
+                weatherResult.innerHTML = '<p>날씨 정보를 찾을 수 없습니다.</p>';
+            }
+        }
+
+        // 강수형태 코드에 따른 설명 반환 함수
+        function getPrecipitationType(value) {
+            switch (value) {
+                case '0': return '없음';
+                case '1': return '비';
+                case '2': return '비/눈';
+                case '3': return '눈';
+                case '5': return '빗방울';
+                case '6': return '빗방울/눈날림';
+                case '7': return '눈날림';
+                default: return '알 수 없음';
+            }
+        }
+
+        // 하늘상태 코드에 따른 설명 반환 함수
+        function getSkyCondition(value) {
+            switch (value) {
+                case '1': return '맑음';
+                case '3': return '구름 많음';
+                case '4': return '흐림';
+                default: return '알 수 없음';
+            }
+        }
+    </script>
+</body>
+</html>
